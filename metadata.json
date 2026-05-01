@@ -1,0 +1,5 @@
+{
+  "name": "PawFeeds",
+  "description": "Real-time monitoring for the PawFeeds Smart Feeding Network, tracking coin insertions and pet food dispensing across multiple locations.",
+  "requestFramePermissions": ["geolocation"]
+}

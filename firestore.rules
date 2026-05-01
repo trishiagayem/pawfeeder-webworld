@@ -1,0 +1,209 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: admins
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required, email) - Admin email address
+    //   - name: string (required, < 100 chars) - Full name
+    //   - bio: string (optional, < 500 chars) - Short biography
+    //   - role: string (required, admin/main) - Access level
+    //   - status: string (required, pending/approved/declined) - Account status
+    //   - managingLocation: string (optional) - Location managed
+    //   - createdAt: timestamp (optional) - When created
+    //
+    // Collection: logs
+    // Document ID: {logId}
+    // Fields:
+    //   - id: string (required) - Unique log ID
+    //   - location: string (required) - Station name
+    //   - type: string (required, Cat/Dog) - Food type
+    //   - coins: number (required, positive) - Coins inserted
+    //   - grams: number (required, positive) - Food dispensed
+    //   - timestamp: timestamp (required) - When occurred
+    //
+    // Collection: stations
+    // Document ID: {stationName}
+    // Fields:
+    //   - name: string (required) - Unique name
+    //   - lat: number (required) - Latitude
+    //   - lng: number (required) - Longitude
+    //   - address: string (optional) - Physical address
+    //   - hopperLevels: map (optional) - Cat/Dog food levels
+    //   - lastSeen: timestamp (optional) - Last update
+    //
+    // Collection: assets
+    // Document ID: global
+    // Fields:
+    //   - qrCode: string (optional) - Donation QR
+    //   - galleryImages: list (optional, < 20 items) - Gallery URLs
+    //   - mission: string (optional) - Mission statement
+    //   - vision: string (optional) - Vision statement
+    //   - fundStrayMessage: string (optional) - Donation message
+    //   - welcomeHeader: string (optional) - Welcome header
+    //   - welcomeSubtitle: string (optional) - Welcome subtitle
+    //   - viewerDisplayName: string (optional) - Viewer display name
+    //   - signupPrompt: string (optional) - Signup prompt
+    //   - bannerImage: string (optional) - Banner image URL
+    //   - logoImage: string (optional) - Logo image URL
+    //   - loginBackgroundImage: string (optional) - Login background URL
+    //
+    // Collection: history
+    // Document ID: {historyId}
+    // Fields:
+    //   - username: string (required)
+    //   - timestamp: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((request.auth.token.email.lower() == "trishiagayem18@gmail.com") ||
+         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role in ['admin', 'main'] &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved'));
+    }
+    
+    function isApprovedAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email.lower() == "trishiagayem18@gmail.com" ||
+         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved'));
+    }
+
+    function isMainAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email.lower() == "trishiagayem18@gmail.com" ||
+         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'main'));
+    }
+
+    function isMainAdminOrOwner(uid) {
+      return isMainAdmin() || isOwner(uid);
+    }
+
+    function canManageLocation(location) {
+      return isMainAdmin() || (
+        isApprovedAdmin() && 
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.managingLocation == location
+      );
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function areImmutableAdminFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'email']);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    
+    function isValidAdmin(data) {
+      return hasRequiredFields(['email', 'name', 'role', 'status']) &&
+             isValidEmail(data.email) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() < 500)) &&
+             data.role in ['admin', 'main'] &&
+             data.status in ['pending', 'approved', 'declined'];
+    }
+    
+    function isValidLog(data) {
+      return hasRequiredFields(['id', 'location', 'type', 'coins', 'grams', 'timestamp']) &&
+             data.id is string && data.id.size() > 0 &&
+             data.location is string && data.location.size() > 0 &&
+             data.type in ['Cat', 'Dog'] &&
+             data.coins is number && data.coins >= 0 &&
+             data.grams is number && data.grams >= 0 &&
+             data.timestamp is timestamp;
+    }
+    
+    function isValidStation(data) {
+      return hasRequiredFields(['name', 'lat', 'lng']) &&
+             data.name is string && data.name.size() > 0 &&
+             data.lat is number && data.lng is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /admins/{uid} {
+      allow read: if isMainAdminOrOwner(uid);
+      allow list: if isMainAdmin();
+      allow create: if isAuthenticated() && isOwner(uid) && isValidAdmin(request.resource.data) && 
+                    ((request.resource.data.role == 'admin' && request.resource.data.status == 'pending') ||
+                     (request.auth.token.email.lower() == "trishiagayem18@gmail.com"));
+      allow update: if (isMainAdmin() && isValidAdmin(request.resource.data) && areImmutableAdminFieldsUnchanged()) ||
+                    (isOwner(uid) && isValidAdmin(request.resource.data) && 
+                     areImmutableAdminFieldsUnchanged() &&
+                     request.resource.data.role == resource.data.role && 
+                     request.resource.data.status == resource.data.status);
+      allow delete: if isMainAdmin();
+    }
+    
+    match /history/{id} {
+      allow read, list: if isMainAdmin();
+      allow create: if isAuthenticated(); // Logins should be recorded
+      allow update, delete: if false;
+    }
+    
+    match /logs/{logId} {
+      allow read: if true; // Publicly readable for the dashboard viewer
+      allow create: if true; // IoT devices might not be authenticated
+      allow update, delete: if canManageLocation(resource.data.location);
+    }
+
+    match /locations/{locationId} {
+      allow read, list: if true; // Allow real-time monitoring
+      allow create, update, delete: if isMainAdmin();
+    }
+    
+    match /stations/{stationName} {
+      allow read: if true;
+      allow create, update: if canManageLocation(stationName) && isValidStation(request.resource.data);
+      allow delete: if canManageLocation(stationName);
+    }
+    
+    match /assets/global {
+      allow read: if true;
+      allow write: if isMainAdmin();
+    }
+  }
+}

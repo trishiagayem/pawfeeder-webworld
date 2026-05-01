@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator profile with role and status.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "Admin email address" },
+        "name": { "type": "string", "description": "Full name" },
+        "bio": { "type": "string", "description": "Short biography" },
+        "role": { "type": "string", "enum": ["admin", "main"], "description": "Access level" },
+        "status": { "type": "string", "enum": ["pending", "approved", "declined"], "description": "Account status" },
+        "managingLocation": { "type": "string", "description": "Location managed" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When created" }
+      },
+      "required": ["uid", "email", "name", "role", "status"]
+    },
+    "Log": {
+      "title": "Log",
+      "description": "Dispense log record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique log ID" },
+        "location": { "type": "string", "description": "Station name" },
+        "type": { "type": "string", "enum": ["Cat", "Dog"], "description": "Food type" },
+        "coins": { "type": "number", "description": "Coins inserted" },
+        "grams": { "type": "number", "description": "Food dispensed" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When occurred" }
+      },
+      "required": ["id", "location", "type", "coins", "grams", "timestamp"]
+    },
+    "Station": {
+      "title": "Station",
+      "description": "Smart feeding station location.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Unique name" },
+        "lat": { "type": "number", "description": "Latitude" },
+        "lng": { "type": "number", "description": "Longitude" },
+        "address": { "type": "string", "description": "Physical address" },
+        "hopperLevels": { "type": "object", "description": "Cat/Dog food levels" },
+        "lastSeen": { "type": "string", "format": "date-time", "description": "Last update" }
+      },
+      "required": ["name", "lat", "lng"]
+    },
+    "Assets": {
+      "title": "Assets",
+      "description": "Global application assets and text.",
+      "type": "object",
+      "properties": {
+        "qrCode": { "type": "string", "description": "Donation QR" },
+        "galleryImages": { "type": "array", "items": { "type": "string" }, "description": "Gallery URLs" },
+        "mission": { "type": "string" },
+        "vision": { "type": "string" },
+        "fundStrayMessage": { "type": "string" },
+        "welcomeHeader": { "type": "string" },
+        "welcomeSubtitle": { "type": "string" },
+        "viewerDisplayName": { "type": "string" },
+        "signupPrompt": { "type": "string" },
+        "bannerImage": { "type": "string" },
+        "logoImage": { "type": "string" },
+        "loginBackgroundImage": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/admins/{uid}": { "schema": { "$ref": "#/entities/Admin" }, "description": "Admin profiles" },
+    "/logs/{logId}": { "schema": { "$ref": "#/entities/Log" }, "description": "Dispense logs" },
+    "/stations/{stationName}": { "schema": { "$ref": "#/entities/Station" }, "description": "Station locations" },
+    "/assets/global": { "schema": { "$ref": "#/entities/Assets" }, "description": "Global assets" }
+  }
+}
