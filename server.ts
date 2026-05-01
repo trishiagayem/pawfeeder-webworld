@@ -24,9 +24,7 @@ let db: Firestore | null = null;
 
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    const serviceAccount = JSON.parse(
-      process.env.FIREBASE_SERVICE_ACCOUNT
-    );
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
@@ -72,13 +70,6 @@ async function startServer() {
 
   const app = express();
   app.use(express.json());
-
-  // =========================
-  // ROOT (FIX 502)
-  // =========================
-  app.get("/", (_, res) => {
-    res.send("Server is running 🚀");
-  });
 
   // =========================
   // GEMINI API
@@ -175,7 +166,7 @@ async function startServer() {
   });
 
   // =========================
-  // VITE FRONTEND
+  // VITE FRONTEND (THIS SERVES YOUR DASHBOARD)
   // =========================
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -189,6 +180,7 @@ async function startServer() {
 
     app.use(express.static(dist));
 
+    // ✅ THIS NOW SERVES YOUR DASHBOARD
     app.get("*", (_, res) => {
       res.sendFile(path.join(dist, "index.html"));
     });
