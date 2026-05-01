@@ -4,7 +4,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import admin from "firebase-admin";
 import { getFirestore, FieldValue, Firestore } from "firebase-admin/firestore";
-import fs from "fs";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -19,28 +18,28 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const PORT = Number(process.env.PORT) || 8080;
 
 // =========================
-// FIREBASE INIT
+// FIREBASE INIT (RAILWAY SAFE)
 // =========================
 let db: Firestore | null = null;
 
 try {
-  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccount = JSON.parse(
+      process.env.FIREBASE_SERVICE_ACCOUNT
+    );
 
-  if (fs.existsSync(configPath)) {
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-
-    const app = admin.initializeApp({
-      projectId: firebaseConfig.projectId,
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
     });
 
-    db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    db = getFirestore();
 
-    console.log("✅ Firebase Admin initialized");
+    console.log("✅ Firebase Admin initialized via ENV");
   } else {
-    console.warn("⚠ firebase-applet-config.json missing (Railway-safe mode)");
+    console.warn("⚠ FIREBASE_SERVICE_ACCOUNT missing (server still running)");
   }
 } catch (error) {
-  console.error("❌ Firebase init error:", error);
+  console.error("❌ Firebase init error (NON-FATAL):", error);
 }
 
 // =========================
@@ -75,7 +74,7 @@ async function startServer() {
   app.use(express.json());
 
   // =========================
-  // 🔥 ROOT ROUTE (FIX 502)
+  // ROOT (FIX 502)
   // =========================
   app.get("/", (_, res) => {
     res.send("Server is running 🚀");
@@ -176,7 +175,7 @@ async function startServer() {
   });
 
   // =========================
-  // VITE (FRONTEND)
+  // VITE FRONTEND
   // =========================
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -196,7 +195,7 @@ async function startServer() {
   }
 
   // =========================
-  // START
+  // START SERVER
   // =========================
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server running on port ${PORT}`);
