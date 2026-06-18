@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx server.ts",
-    "build": "vite build",
+    "build": "vite build && tsc -p tsconfig.json",
     "build:server": "tsc -p tsconfig.json",
     "preview": "vite preview",
     "start": "node dist/server.js",

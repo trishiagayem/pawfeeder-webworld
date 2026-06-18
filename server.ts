@@ -71,6 +71,8 @@ async function startServer() {
   const app = express();
   app.use(express.json());
 
+console.log("DIST PATH:", path.join(process.cwd(), "dist"));
+
   // =========================
   // GEMINI API
   // =========================
